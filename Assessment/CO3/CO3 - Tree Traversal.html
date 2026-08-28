@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TreeLab — Interactive DSA Tree Visualizer</title>
+<style>
+:root{
+  --bg:#0b0e14; --bg2:#11151f; --panel:#141926cc; --panel-solid:#141926;
+  --border:#232a3b; --text:#e7ebf5; --text-dim:#8992a8; --text-faint:#5c6379;
+  --accent:#5eead4; --accent2:#a78bfa; --accent-warm:#fb923c;
+  --red:#ef4444; --black-node:#1e2537; --green:#34d399;
+  --shadow: 0 10px 30px -10px rgba(0,0,0,.6);
+  --mono: 'JetBrains Mono','Fira Code',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --radius:14px;
+}
+[data-theme="light"]{
+  --bg:#f5f6fa; --bg2:#ffffff; --panel:#ffffffee; --panel-solid:#ffffff;
+  --border:#e2e5ee; --text:#141926; --text-dim:#5c6379; --text-faint:#9aa1b5;
+  --accent:#0d9488; --accent2:#7c3aed; --accent-warm:#ea580c;
+  --black-node:#1e2537; --shadow: 0 10px 30px -10px rgba(20,25,38,.15);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  background:
+    radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent),
+    radial-gradient(900px 500px at -10% 20%, color-mix(in srgb, var(--accent2) 8%, transparent), transparent),
+    var(--bg);
+  color:var(--text); font-family:var(--sans); min-height:100vh;
+}
+a{color:inherit;}
+::selection{background:color-mix(in srgb, var(--accent) 35%, transparent);}
+button{font-family:var(--sans); cursor:pointer;}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px;}
+
+/* ---------- top bar ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 24px; border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:40; backdrop-filter:blur(14px);
+  background:color-mix(in srgb, var(--bg) 78%, transparent);
+}
+.brand{display:flex; align-items:baseline; gap:10px;}
+.brand .mark{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#0b0e14; font-weight:800; font-family:var(--mono); font-size:15px;
+}
+.brand h1{font-size:19px; margin:0; font-weight:800; letter-spacing:-0.02em;}
+.brand .sub{font-size:12px; color:var(--text-dim); font-family:var(--mono); letter-spacing:.02em;}
+.brand-row{display:flex; flex-direction:column; gap:1px;}
+.top-actions{display:flex; gap:8px; align-items:center;}
+.icon-btn{
+  border:1px solid var(--border); background:var(--panel-solid); color:var(--text);
+  border-radius:10px; padding:8px 12px; font-size:13px; display:flex; gap:6px; align-items:center;
+  transition:.15s; font-weight:600;
+}
+.icon-btn:hover{border-color:var(--accent); color:var(--accent);}
+
+/* ---------- layout ---------- */
+.layout{display:grid; grid-template-columns:260px 1fr; gap:16px; padding:16px 24px 40px; max-width:1680px; margin:0 auto;}
+@media (max-width: 980px){ .layout{grid-template-columns:1fr;} }
+
+.card{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  backdrop-filter:blur(10px); box-shadow:var(--shadow);
+}
+.sidebar{padding:14px; align-self:start; position:sticky; top:82px;}
+@media (max-width:980px){ .sidebar{position:static;} }
+.sidebar h2{font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-faint); margin:4px 6px 10px;}
+.tree-option{
+  display:flex; gap:10px; align-items:flex-start; padding:11px 12px; border-radius:11px; margin-bottom:6px;
+  border:1px solid transparent; transition:.15s; position:relative;
+}
+.tree-option:hover{background:color-mix(in srgb, var(--accent) 8%, transparent);}
+.tree-option.active{
+  border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+  background:color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.tree-option .dot{width:9px;height:9px;border-radius:3px;margin-top:5px;flex:0 0 auto;}
+.tree-option .name{font-weight:700; font-size:14px;}
+.tree-option .desc{font-size:11.5px; color:var(--text-dim); line-height:1.4; margin-top:2px;}
+.tree-option button{all:unset; display:block; width:100%; cursor:pointer;}
+
+.main-col{display:flex; flex-direction:column; gap:16px; min-width:0;}
+
+.header-card{padding:20px 22px;}
+.header-top{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;}
+.header-top h2{margin:0; font-size:22px; letter-spacing:-0.01em;}
+.header-top .tagline{color:var(--text-dim); font-size:13.5px; margin-top:4px; max-width:60ch;}
+.chip{
+  font-family:var(--mono); font-size:11px; padding:4px 9px; border-radius:999px;
+  border:1px solid var(--border); color:var(--text-dim); white-space:nowrap;
+}
+.info-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px;}
+@media (max-width:800px){ .info-grid{grid-template-columns:repeat(2,1fr);} }
+.info-box{background:color-mix(in srgb, var(--bg2) 60%, transparent); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
+.info-box .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); margin-bottom:3px;}
+.info-box .v{font-size:12.5px; line-height:1.4;}
+
+/* controls */
+.controls-card{padding:16px 20px; display:flex; flex-direction:column; gap:12px;}
+.controls-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+.controls-row.tight{gap:8px;}
+input[type=text], input[type=number]{
+  background:var(--bg2); border:1px solid var(--border); color:var(--text);
+  border-radius:10px; padding:10px 12px; font-family:var(--mono); font-size:13.5px; flex:1; min-width:160px;
+}
+input:focus{border-color:var(--accent);}
+.btn{
+  border:1px solid var(--border); background:var(--panel-solid); color:var(--text); font-weight:700;
+  font-size:13px; padding:10px 15px; border-radius:10px; transition:.15s; display:inline-flex; gap:6px; align-items:center;
+}
+.btn:hover{border-color:var(--accent); color:var(--accent); transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn.primary{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 60%, var(--accent2))); color:#06131a; border:none;}
+.btn.primary:hover{filter:brightness(1.08); color:#06131a;}
+.btn.danger:hover{border-color:var(--red); color:var(--red);}
+.btn.ghost{background:transparent;}
+.btn:disabled{opacity:.4; cursor:not-allowed; transform:none;}
+.label-sm{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.08em;}
+.msg-line{font-size:12.5px; min-height:18px; font-family:var(--mono);}
+.msg-line.error{color:var(--red);}
+.msg-line.ok{color:var(--green);}
+.msg-line.info{color:var(--text-dim);}
+.deg-input{width:70px; flex:0 0 auto;}
+
+/* viz */
+.viz-card{padding:0; overflow:hidden;}
+.viz-toolbar{display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px;}
+.legend{display:flex; gap:14px; font-size:11.5px; color:var(--text-dim); flex-wrap:wrap;}
+.legend span{display:inline-flex; align-items:center; gap:5px;}
+.legend i{width:10px;height:10px;border-radius:3px; display:inline-block;}
+.viz-scroll{overflow:auto; background:
+  radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--text-faint) 25%, transparent) 1px, transparent 1px) 0 0/22px 22px;
+  min-height:420px; max-height:620px;}
+svg.tree-svg{display:block;}
+.svg-node-circle{stroke-width:2px; transition:all .35s ease;}
+.svg-node-rect{stroke-width:2px; transition:all .35s ease; fill:var(--bg2);}
+.svg-label{font-family:var(--mono); font-weight:700; fill:var(--text); dominant-baseline:middle; text-anchor:middle; transition:fill .3s;}
+.svg-edge{stroke:var(--text-faint); stroke-width:2px; fill:none; transition:all .35s ease;}
+.svg-leafchain{stroke:var(--accent-warm); stroke-width:1.6px; stroke-dasharray:5 4; fill:none; opacity:.8;}
+.svg-meta{font-family:var(--mono); font-size:9.5px; fill:var(--text-faint); text-anchor:middle;}
+.empty-state{display:flex; flex-direction:column; align-items:center; justify-content:center; padding:70px 20px; color:var(--text-dim); text-align:center; gap:10px;}
+.empty-state .big{font-size:15px; font-weight:700; color:var(--text);}
+
+/* bottom grid */
+.bottom-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:16px;}
+@media (max-width:980px){ .bottom-grid{grid-template-columns:1fr;} }
+.panel-card{padding:16px 18px;}
+.panel-card h3{margin:0 0 10px; font-size:13.5px; display:flex; align-items:center; justify-content:space-between;}
+.panel-card h3 .sub-actions{display:flex; gap:6px;}
+.mini-btn{border:1px solid var(--border); background:transparent; color:var(--text-dim); border-radius:7px; padding:4px 8px; font-size:11px; font-weight:700;}
+.mini-btn:hover{color:var(--accent); border-color:var(--accent);}
+.steps-list{list-style:none; margin:0; padding:0; max-height:260px; overflow:auto; display:flex; flex-direction:column; gap:6px;}
+.steps-list li{
+  border:1px solid var(--border); border-radius:9px; padding:8px 10px; font-size:12.5px; font-family:var(--mono);
+  color:var(--text-dim); opacity:.55; transition:.2s;
+}
+.steps-list li.active{opacity:1; border-color:var(--accent); color:var(--text); background:color-mix(in srgb, var(--accent) 8%, transparent);}
+.steps-list li .idx{color:var(--accent); margin-right:6px; font-weight:700;}
+.prop-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+.prop-table td{padding:6px 4px; border-bottom:1px solid var(--border);}
+.prop-table td:first-child{color:var(--text-dim);}
+.prop-table td:last-child{text-align:right; font-family:var(--mono); font-weight:700;}
+.traversal-line{font-family:var(--mono); font-size:12.5px; margin-bottom:8px; line-height:1.6; word-break:break-word;}
+.traversal-line b{color:var(--accent); margin-right:6px; font-family:var(--sans); font-weight:700;}
+.tabs{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
+.tab{border:1px solid var(--border); background:transparent; color:var(--text-dim); padding:6px 11px; border-radius:8px; font-size:11.5px; font-weight:700;}
+.tab.active{color:var(--accent); border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent);}
+.tooltip-term{border-bottom:1px dashed var(--text-faint); cursor:help; position:relative;}
+.tooltip-term:hover .tip-bubble{display:block;}
+.tip-bubble{
+  display:none; position:absolute; bottom:130%; left:50%; transform:translateX(-50%); width:220px;
+  background:var(--panel-solid); border:1px solid var(--accent); border-radius:10px; padding:10px 12px; font-size:11.5px;
+  color:var(--text); z-index:50; box-shadow:var(--shadow); font-family:var(--sans); line-height:1.4;
+}
+.footer-note{text-align:center; color:var(--text-faint); font-size:11.5px; padding:18px; font-family:var(--mono);}
+.range-row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.pill-result{background:color-mix(in srgb, var(--accent) 12%, transparent); border:1px solid var(--accent); border-radius:8px; padding:3px 9px; font-family:var(--mono); font-size:12px;}
+.validate-box{margin-top:8px; padding:10px 12px; border-radius:10px; font-family:var(--mono); font-size:12.5px; border:1px solid var(--border);}
+.validate-box.valid{border-color:var(--green); color:var(--green); background:color-mix(in srgb, var(--green) 8%, transparent);}
+.validate-box.invalid{border-color:var(--red); color:var(--red); background:color-mix(in srgb, var(--red) 8%, transparent);}
+.welcome-overlay{
+  position:fixed; inset:0; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(8px);
+  z-index:100; display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.welcome-box{max-width:460px; text-align:center; padding:36px 32px; border-radius:20px; background:var(--panel-solid); border:1px solid var(--border); box-shadow:var(--shadow);}
+.welcome-box .mark{width:56px;height:56px;border-radius:16px;margin:0 auto 18px; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:grid; place-items:center; color:#06131a; font-weight:800; font-family:var(--mono); font-size:24px;}
+.welcome-box h2{margin:0 0 8px; font-size:22px;}
+.welcome-box p{color:var(--text-dim); font-size:13.5px; line-height:1.6; margin-bottom:20px;}
+.presets-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+::-webkit-scrollbar{width:9px; height:9px;}
+::-webkit-scrollbar-thumb{background:var(--border); border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text-faint);}
+.sr-only{position:absolute; width:1px;height:1px;overflow:hidden; clip:rect(0,0,0,0);}
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div class="welcome-box">
+    <div class="mark">T</div>
+    <h2>Welcome to TreeLab</h2>
+    <p>Explore advanced tree data structures interactively. Insert, delete, search, and watch real algorithms balance, split, and recolor themselves — step by step.</p>
+    <button class="btn primary" id="welcomeStart" style="width:100%;justify-content:center;padding:12px;">Choose a tree to begin →</button>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="mark">T</div>
+    <div class="brand-row">
+      <h1>TreeLab</h1>
+      <span class="sub">Learn. Insert. Delete. Visualize.</span>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn" id="exportSvgBtn" title="Export current tree as SVG">⬇ SVG</button>
+    <button class="icon-btn" id="exportPngBtn" title="Export current tree as PNG">⬇ PNG</button>
+    <button class="icon-btn" id="themeToggle" title="Toggle theme">🌙 Theme</button>
+    <button class="icon-btn" id="helpBtn" title="Help">? Help</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="card sidebar" aria-label="Tree type selector">
+    <h2>Tree Types</h2>
+    <div id="treeOptions"></div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-col">
+    <section class="card header-card">
+      <div class="header-top">
+        <div>
+          <h2 id="treeTitle">AVL Tree</h2>
+          <div class="tagline" id="treeTagline">Self-balancing Binary Search Tree using rotations.</div>
+        </div>
+        <span class="chip" id="treeComplexityChip">O(log n) search / insert / delete</span>
+      </div>
+      <div class="info-grid" id="infoGrid"></div>
+    </section>
+
+    <section class="card controls-card">
+      <div class="controls-row">
+        <input type="text" id="valueInput" placeholder="Enter values, e.g. 10, 20, 30" aria-label="Values input">
+        <div id="degreeWrap" class="controls-row tight" style="display:none;">
+          <span class="label-sm">Min degree (t)</span>
+          <input type="number" id="degreeInput" class="deg-input" min="2" value="2">
+          <button class="btn ghost" id="applyDegreeBtn">Apply</button>
+        </div>
+      </div>
+      <div class="controls-row tight" id="mainButtons">
+        <button class="btn primary" id="insertBtn">Insert</button>
+        <button class="btn" id="deleteBtn">Delete</button>
+        <button class="btn" id="searchBtn">Search</button>
+        <button class="btn" id="prefixBtn" style="display:none;">Prefix Search</button>
+        <button class="btn ghost" id="clearBtn">Clear</button>
+        <button class="btn ghost" id="randomBtn">🎲 Random</button>
+        <input type="number" id="randomCount" class="deg-input" min="1" max="200" value="10" title="Number of random values">
+        <button class="btn ghost" id="validateBtn">✓ Validate Tree</button>
+        <button class="btn ghost danger" id="resetBtn">Reset</button>
+      </div>
+      <div class="controls-row tight" id="rangeRow" style="display:none;">
+        <span class="label-sm">Range search</span>
+        <input type="text" id="rangeFrom" placeholder="from" class="deg-input" style="width:80px;">
+        <span class="label-sm">to</span>
+        <input type="text" id="rangeTo" placeholder="to" class="deg-input" style="width:80px;">
+        <button class="btn ghost" id="rangeBtn">Search Range</button>
+        <span id="rangeResult"></span>
+      </div>
+      <div class="msg-line info" id="msgLine">Enter comma or space separated values, then Insert.</div>
+      <div class="validate-box" id="validateBox" style="display:none;"></div>
+    </section>
+
+    <section class="card viz-card">
+      <div class="viz-toolbar">
+        <div class="legend" id="legend"></div>
+        <div class="controls-row tight">
+          <button class="mini-btn" id="zoomOutBtn">－</button>
+          <button class="mini-btn" id="zoomResetBtn">100%</button>
+          <button class="mini-btn" id="zoomInBtn">＋</button>
+        </div>
+      </div>
+      <div class="viz-scroll" id="vizScroll">
+        <div class="empty-state" id="emptyState"><div class="big">Tree is empty</div><div>Insert values above, or click Random to generate one.</div></div>
+        <svg class="tree-svg" id="treeSvg" xmlns="http://www.w3.org/2000/svg" style="display:none;"></svg>
+      </div>
+    </section>
+
+    <section class="bottom-grid">
+      <div class="card panel-card">
+        <h3>Algorithm Steps
+          <span class="sub-actions">
+            <button class="mini-btn" id="stepPrev">⏮ Prev</button>
+            <button class="mini-btn" id="stepPlay">▶ Play</button>
+            <button class="mini-btn" id="stepNext">Next ⏭</button>
+          </span>
+        </h3>
+        <ol class="steps-list" id="stepsList"><li>No operation performed yet.</li></ol>
+        <div style="margin-top:14px;">
+          <div class="tabs" id="traversalTabs"></div>
+          <div id="traversalOutput"></div>
+        </div>
+      </div>
+
+      <div class="card panel-card">
+        <h3>Tree Properties</h3>
+        <table class="prop-table"><tbody id="propsBody"></tbody></table>
+        <h3 style="margin-top:18px;">About this structure</h3>
+        <div id="aboutBox" style="font-size:12.5px; color:var(--text-dim); line-height:1.6;"></div>
+        <h3 style="margin-top:18px;">Common applications</h3>
+        <div id="appsBox" style="font-size:12.5px; color:var(--text-dim); line-height:1.7;"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="footer-note">TreeLab — a professional playground for AVL, Red-Black, B-Tree, B+ Tree &amp; Trie structures. Runs entirely in your browser.</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   TREELAB — SINGLE FILE DSA VISUALIZER
+   Sections: Data Structures -> Layout Engine -> Renderer -> App Controller
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------
+   0. SHARED HELPERS
+--------------------------------------------------------------------- */
+function parseValues(raw){
+  return raw.split(/[,\s]+/).map(s=>s.trim()).filter(s=>s.length>0);
+}
+function parseNumbers(raw){
+  return parseValues(raw).map(Number).filter(n=>!isNaN(n));
+}
+function uid(){ return 'n'+Math.random().toString(36).slice(2,9); }
+
+/* ---------------------------------------------------------------------
+   1. AVL TREE  (real implementation)
+--------------------------------------------------------------------- */
+class AVLNode{
+  constructor(value){ this.value=value; this.left=null; this.right=null; this.height=1; this.id=uid(); }
+}
+class AVLTree{
+  constructor(){ this.root=null; this.steps=[]; }
+  h(n){ return n? n.height:0; }
+  bf(n){ return n? this.h(n.left)-this.h(n.right):0; }
+  update(n){ n.height = 1+Math.max(this.h(n.left), this.h(n.right)); }
+  rotateRight(y){
+    const x=y.left; const t2=x.right;
+    x.right=y; y.left=t2;
+    this.update(y); this.update(x);
+    this.steps.push(`Right rotation performed around node ${y.value}.`);
+    return x;
+  }
+  rotateLeft(x){
+    const y=x.right; const t2=y.left;
+    y.left=x; x.right=t2;
+    this.update(x); this.update(y);
+    this.steps.push(`Left rotation performed around node ${x.value}.`);
+    return y;
+  }
+  insert(value){
+    this.steps=[];
+    if(this.find(value)!=null){ this.steps.push(`Value ${value} already exists. Duplicates are not allowed.`); return false; }
+    this.steps.push(`Searching for insertion position for ${value}...`);
+    this.root=this._insert(this.root,value);
+    this.steps.push('Tree balanced. Insertion complete.');
+    return true;
+  }
+  _insert(node,value){
+    if(!node){ this.steps.push(`Inserted ${value} as a new leaf node.`); return new AVLNode(value); }
+    if(value<node.value) node.left=this._insert(node.left,value);
+    else if(value>node.value) node.right=this._insert(node.right,value);
+    else return node;
+    this.update(node);
+    const balance=this.bf(node);
+    if(balance>1 || balance<-1){
+      this.steps.push(`Balance factor of node ${node.value} = ${balance}.`);
+    }
+    if(balance>1 && value<node.left.value){ this.steps.push('LL imbalance detected.'); return this.rotateRight(node); }
+    if(balance<-1 && value>node.right.value){ this.steps.push('RR imbalance detected.'); return this.rotateLeft(node); }
+    if(balance>1 && value>node.left.value){ this.steps.push('LR imbalance detected.'); node.left=this.rotateLeft(node.left); return this.rotateRight(node); }
+    if(balance<-1 && value<node.right.value){ this.steps.push('RL imbalance detected.'); node.right=this.rotateRight(node.right); return this.rotateLeft(node); }
+    return node;
+  }
+  minValueNode(node){ let cur=node; while(cur.left) cur=cur.left; return cur; }
+  delete(value){
+    this.steps=[];
+    if(this.find(value)==null){ this.steps.push(`Value ${value} not found.`); return false; }
+    this.steps.push(`Searching for ${value} to delete...`);
+    this.root=this._delete(this.root,value);
+    this.steps.push('Tree rebalanced after deletion.');
+    return true;
+  }
+  _delete(node,value){
+    if(!node) return node;
+    if(value<node.value) node.left=this._delete(node.left,value);
+    else if(value>node.value) node.right=this._delete(node.right,value);
+    else{
+      this.steps.push(`Removing node ${value}.`);
+      if(!node.left || !node.right){
+        node = node.left? node.left : node.right;
+      } else {
+        const succ=this.minValueNode(node.right);
+        this.steps.push(`Replacing with inorder successor ${succ.value}.`);
+        node.value=succ.value;
+        node.right=this._delete(node.right,succ.value);
+      }
+    }
+    if(!node) return node;
+    this.update(node);
+    const balance=this.bf(node);
+    if(balance>1 && this.bf(node.left)>=0) return this.rotateRight(node);
+    if(balance>1 && this.bf(node.left)<0){ node.left=this.rotateLeft(node.left); return this.rotateRight(node); }
+    if(balance<-1 && this.bf(node.right)<=0) return this.rotateLeft(node);
+    if(balance<-1 && this.bf(node.right)>0){ node.right=this.rotateRight(node.right); return this.rotateLeft(node); }
+    return node;
+  }
+  find(value){ let cur=this.root; while(cur){ if(value===cur.value) return cur; cur=value<cur.value?cur.left:cur.right; } return null; }
+  search(value){
+    this.steps=[]; let cur=this.root; let path=[];
+    while(cur){ path.push(cur.value); if(value===cur.value){ this.steps.push(`Path: ${path.join(' → ')}`); this.steps.push(`Value ${value} found.`); return true;} cur = value<cur.value?cur.left:cur.right; }
+    this.steps.push(`Path: ${path.join(' → ')||'(empty)'}`);
+    this.steps.push(`Value ${value} not found.`);
+    return false;
+  }
+  inorder(){ const out=[]; (function rec(n){ if(!n)return; rec(n.left); out.push(n.value); rec(n.right);})(this.root); return out; }
+  preorder(){ const out=[]; (function rec(n){ if(!n)return; out.push(n.value); rec(n.left); rec(n.right);})(this.root); return out; }
+  postorder(){ const out=[]; (function rec(n){ if(!n)return; rec(n.left); rec(n.right); out.push(n.value);})(this.root); return out; }
+  levelorder(){ const out=[]; if(!this.root) return out; const q=[this.root]; while(q.length){ const n=q.shift(); out.push(n.value); if(n.left)q.push(n.left); if(n.right)q.push(n.right);} return out; }
+  count(){ let c=0; (function rec(n){ if(!n)return; c++; rec(n.left); rec(n.right);})(this.root); return c; }
+  validate(){
+    let ok=true; const errs=[];
+    (function rec(n,lo,hi){
+      if(!n) return 0;
+      if((lo!==null && n.value<=lo) || (hi!==null && n.value>=hi)){ ok=false; errs.push(`BST violation at node ${n.value}`); }
+      const lh=rec(n.left,lo,n.value), rh=rec(n.right,n.value,hi);
+      if(Math.abs(lh-rh)>1){ ok=false; errs.push(`Balance violation at node ${n.value} (bf=${lh-rh})`); }
+      const h=1+Math.max(lh,rh);
+      if(h!==n.height){ ok=false; errs.push(`Height mismatch at node ${n.value}`); }
+      return h;
+    })(this.root,null,null);
+    return {ok, errs};
+  }
+}
+
+/* ---------------------------------------------------------------------
+   2. RED-BLACK TREE (real implementation, CLRS-style with sentinel)
+--------------------------------------------------------------------- */
+const RB_RED='R', RB_BLACK='B';
+class RBNode{
+  constructor(value){ this.value=value; this.color=RB_RED; this.left=null; this.right=null; this.parent=null; this.id=uid(); }
+}
+class RedBlackTree{
+  constructor(){
+    this.NIL=new RBNode(null); this.NIL.color=RB_BLACK; this.NIL.left=null; this.NIL.right=null;
+    this.root=this.NIL; this.steps=[];
+  }
+  leftRotate(x){
+    const y=x.right; x.right=y.left;
+    if(y.left!==this.NIL) y.left.parent=x;
+    y.parent=x.parent;
+    if(x.parent===this.NIL) this.root=y;
+    else if(x===x.parent.left) x.parent.left=y; else x.parent.right=y;
+    y.left=x; x.parent=y;
+    this.steps.push(`Left rotation performed around node ${x.value}.`);
+  }
+  rightRotate(x){
+    const y=x.left; x.left=y.right;
+    if(y.right!==this.NIL) y.right.parent=x;
+    y.parent=x.parent;
+    if(x.parent===this.NIL) this.root=y;
+    else if(x===x.parent.right) x.parent.right=y; else x.parent.left=y;
+    y.right=x; x.parent=y;
+    this.steps.push(`Right rotation performed around node ${x.value}.`);
+  }
+  find(value){ let cur=this.root; while(cur!==this.NIL){ if(value===cur.value) return cur; cur = value<cur.value?cur.left:cur.right;} return null; }
+  insert(value){
+    this.steps=[];
+    if(this.find(value)!=null){ this.steps.push(`Value ${value} already exists.`); return false; }
+    let z=new RBNode(value); z.left=this.NIL; z.right=this.NIL;
+    let y=this.NIL, x=this.root;
+    this.steps.push(`Searching for insertion position for ${value}...`);
+    while(x!==this.NIL){ y=x; x = value<x.value? x.left : x.right; }
+    z.parent=y;
+    if(y===this.NIL) this.root=z;
+    else if(value<y.value) y.left=z; else y.right=z;
+    this.steps.push(`Inserted ${value} colored RED.`);
+    this._insertFixup(z);
+    this.root.color=RB_BLACK;
+    this.steps.push('Red-Black properties restored.');
+    return true;
+  }
+  _insertFixup(z){
+    while(z.parent.color===RB_RED){
+      if(z.parent===z.parent.parent.left){
+        const y=z.parent.parent.right;
+        if(y.color===RB_RED){
+          this.steps.push(`Uncle of ${z.value} is RED — recoloring.`);
+          z.parent.color=RB_BLACK; y.color=RB_BLACK; z.parent.parent.color=RB_RED; z=z.parent.parent;
+        } else {
+          if(z===z.parent.right){ this.steps.push(`Uncle is BLACK, triangle case — rotating left.`); z=z.parent; this.leftRotate(z); }
+          this.steps.push('Uncle is BLACK, line case — recoloring and rotating right.');
+          z.parent.color=RB_BLACK; z.parent.parent.color=RB_RED; this.rightRotate(z.parent.parent);
+        }
+      } else {
+        const y=z.parent.parent.left;
+        if(y.color===RB_RED){
+          this.steps.push(`Uncle of ${z.value} is RED — recoloring.`);
+          z.parent.color=RB_BLACK; y.color=RB_BLACK; z.parent.parent.color=RB_RED; z=z.parent.parent;
+        } else {
+          if(z===z.parent.left){ this.steps.push(`Uncle is BLACK, triangle case — rotating right.`); z=z.parent; this.rightRotate(z); }
+          this.steps.push('Uncle is BLACK, line case — recoloring and rotating left.');
+          z.parent.color=RB_BLACK; z.parent.parent.color=RB_RED; this.leftRotate(z.parent.parent);
+        }
+      }
+      if(z===this.root) break;
+    }
+  }
+  transplant(u,v){
+    if(u.parent===this.NIL) this.root=v;
+    else if(u===u.parent.left) u.parent.left=v; else u.parent.right=v;
+    v.parent=u.parent;
+  }
+  minimum(node){ while(node.left!==this.NIL) node=node.left; return node; }
+  delete(value){
+    this.steps=[];
+    let z=this.find(value);
+    if(!z){ this.steps.push(`Value ${value} not found.`); return false; }
+    this.steps.push(`Deleting node ${value}.`);
+    let y=z, yOriginalColor=y.color, x;
+    if(z.left===this.NIL){ x=z.right; this.transplant(z,z.right); }
+    else if(z.right===this.NIL){ x=z.left; this.transplant(z,z.left); }
+    else{
+      y=this.minimum(z.right); yOriginalColor=y.color; x=y.right;
+      if(y.parent===z) x.parent=y;
+      else{ this.transplant(y,y.right); y.right=z.right; y.right.parent=y; }
+      this.transplant(z,y); y.left=z.left; y.left.parent=y; y.color=z.color;
+    }
+    if(yOriginalColor===RB_BLACK){ this.steps.push('A black node was removed — fixing double-black violation.'); this._deleteFixup(x); }
+    this.root.color=RB_BLACK;
+    this.steps.push('Red-Black properties restored.');
+    return true;
+  }
+  _deleteFixup(x){
+    while(x!==this.root && x.color===RB_BLACK){
+      if(x===x.parent.left){
+        let w=x.parent.right;
+        if(w.color===RB_RED){ this.steps.push('Sibling is RED — recolor and rotate.'); w.color=RB_BLACK; x.parent.color=RB_RED; this.leftRotate(x.parent); w=x.parent.right; }
+        if(w.left.color===RB_BLACK && w.right.color===RB_BLACK){ this.steps.push('Both nephews BLACK — recolor sibling.'); w.color=RB_RED; x=x.parent; }
+        else{
+          if(w.right.color===RB_BLACK){ this.steps.push('Near nephew RED — rotate right on sibling.'); w.left.color=RB_BLACK; w.color=RB_RED; this.rightRotate(w); w=x.parent.right; }
+          this.steps.push('Far nephew RED — recolor and rotate left.');
+          w.color=x.parent.color; x.parent.color=RB_BLACK; w.right.color=RB_BLACK; this.leftRotate(x.parent); x=this.root;
+        }
+      } else {
+        let w=x.parent.left;
+        if(w.color===RB_RED){ this.steps.push('Sibling is RED — recolor and rotate.'); w.color=RB_BLACK; x.parent.color=RB_RED; this.rightRotate(x.parent); w=x.parent.left; }
+        if(w.right.color===RB_BLACK && w.left.color===RB_BLACK){ this.steps.push('Both nephews BLACK — recolor sibling.'); w.color=RB_RED; x=x.parent; }
+        else{
+          if(w.left.color===RB_BLACK){ this.steps.push('Near nephew RED — rotate left on sibling.'); w.right.color=RB_BLACK; w.color=RB_RED; this.leftRotate(w); w=x.parent.left; }
+          this.steps.push('Far nephew RED — recolor and rotate right.');
+          w.color=x.parent.color; x.parent.color=RB_BLACK; w.left.color=RB_BLACK; this.rightRotate(x.parent); x=this.root;
+        }
+      }
+    }
+    x.color=RB_BLACK;
+  }
+  search(value){
+    this.steps=[]; let cur=this.root; let path=[];
+    while(cur!==this.NIL){ path.push(cur.value); if(value===cur.value){ this.steps.push(`Path: ${path.join(' → ')}`); this.steps.push(`Value ${value} found (${cur.color==='R'?'RED':'BLACK'}).`); return true; } cur=value<cur.value?cur.left:cur.right; }
+    this.steps.push(`Path: ${path.join(' → ')||'(empty)'}`); this.steps.push(`Value ${value} not found.`); return false;
+  }
+  inorder(){ const out=[]; const rec=(n)=>{ if(n===this.NIL)return; rec(n.left); out.push(n.value); rec(n.right); }; rec(this.root); return out; }
+  preorder(){ const out=[]; const rec=(n)=>{ if(n===this.NIL)return; out.push(n.value); rec(n.left); rec(n.right); }; rec(this.root); return out; }
+  postorder(){ const out=[]; const rec=(n)=>{ if(n===this.NIL)return; rec(n.left); rec(n.right); out.push(n.value); }; rec(this.root); return out; }
+  levelorder(){ const out=[]; if(this.root===this.NIL) return out; const q=[this.root]; while(q.length){ const n=q.shift(); out.push(n.value); if(n.left!==this.NIL)q.push(n.left); if(n.right!==this.NIL)q.push(n.right);} return out; }
+  count(){ let c=0; const rec=(n)=>{ if(n===this.NIL)return; c++; rec(n.left); rec(n.right); }; rec(this.root); return c; }
+  height(node){ if(node===this.NIL || !node) return 0; return 1+Math.max(this.height(node.left), this.height(node.right)); }
+  validate(){
+    let ok=true; const errs=[];
+    if(this.root!==this.NIL && this.root.color!==RB_BLACK){ ok=false; errs.push('Root is not black.'); }
+    const rec=(n,lo,hi)=>{
+      if(n===this.NIL) return 1;
+      if((lo!==null && n.value<=lo)||(hi!==null && n.value>=hi)){ ok=false; errs.push(`BST violation at ${n.value}`); }
+      if(n.color===RB_RED){
+        if(n.left.color===RB_RED || n.right.color===RB_RED){ ok=false; errs.push(`Red-red violation at ${n.value}`); }
+      }
+      const lb=rec(n.left,lo,n.value), rb=rec(n.right,n.value,hi);
+      if(lb!==rb){ ok=false; errs.push(`Black-height mismatch at ${n.value}`); }
+      return lb + (n.color===RB_BLACK?1:0);
+    };
+    rec(this.root,null,null);
+    return {ok, errs};
+  }
+}
+
+/* ---------------------------------------------------------------------
+   3. B-TREE (real implementation, minimum degree t)
+--------------------------------------------------------------------- */
+class BTreeNode{
+  constructor(leaf){ this.leaf=leaf; this.keys=[]; this.children=[]; this.id=uid(); }
+}
+class BTree{
+  constructor(t=2){ this.t=t; this.root=new BTreeNode(true); this.steps=[]; }
+  setDegree(t){ this.t=t; this.root=new BTreeNode(true); this.steps=[]; }
+  search(k, node=this.root){
+    let i=0; while(i<node.keys.length && k>node.keys[i]) i++;
+    if(i<node.keys.length && node.keys[i]===k) return node;
+    if(node.leaf) return null;
+    return this.search(k, node.children[i]);
+  }
+  insert(k){
+    this.steps=[];
+    if(this.search(k)){ this.steps.push(`Key ${k} already exists.`); return false; }
+    this.steps.push(`Inserting key ${k}...`);
+    let r=this.root;
+    if(r.keys.length===2*this.t-1){
+      this.steps.push('Root is full — splitting root.');
+      const s=new BTreeNode(false); s.children.push(r); this.root=s;
+      this._splitChild(s,0); this._insertNonFull(s,k);
+    } else this._insertNonFull(r,k);
+    return true;
+  }
+  _splitChild(x,i){
+    const t=this.t; const y=x.children[i]; const z=new BTreeNode(y.leaf);
+    const midKey=y.keys[t-1];
+    z.keys=y.keys.splice(t, t-1);
+    y.keys.splice(t-1,1);
+    if(!y.leaf) z.children=y.children.splice(t, t);
+    x.children.splice(i+1,0,z); x.keys.splice(i,0,midKey);
+    this.steps.push(`Node overflowed. Splitting and promoting key ${midKey}.`);
+  }
+  _insertNonFull(x,k){
+    let i=x.keys.length-1;
+    if(x.leaf){
+      while(i>=0 && k<x.keys[i]){ x.keys[i+1]=x.keys[i]; i--; }
+      x.keys[i+1]=k;
+      this.steps.push(`Inserted key ${k} into leaf node.`);
+    } else {
+      while(i>=0 && k<x.keys[i]) i--;
+      i++;
+      if(x.children[i].keys.length===2*this.t-1){
+        this._splitChild(x,i);
+        if(k>x.keys[i]) i++;
+      }
+      this._insertNonFull(x.children[i],k);
+    }
+  }
+  delete(k){
+    this.steps=[];
+    if(!this.search(k)){ this.steps.push(`Key ${k} not found.`); return false; }
+    this.steps.push(`Deleting key ${k}...`);
+    this._deleteKey(this.root,k);
+    if(this.root.keys.length===0 && !this.root.leaf){ this.steps.push('Root shrank — promoting sole child as new root.'); this.root=this.root.children[0]; }
+    return true;
+  }
+  _findKeyIdx(node,k){ let idx=0; while(idx<node.keys.length && node.keys[idx]<k) idx++; return idx; }
+  _deleteKey(node,k){
+    const t=this.t; const idx=this._findKeyIdx(node,k);
+    if(idx<node.keys.length && node.keys[idx]===k){
+      if(node.leaf){ node.keys.splice(idx,1); this.steps.push(`Removed key ${k} from leaf.`); }
+      else this._deleteInternal(node,idx);
+    } else {
+      if(node.leaf){ return; }
+      const flag = (idx===node.keys.length);
+      if(node.children[idx].keys.length<t) this._fill(node,idx);
+      if(flag && idx>node.keys.length) this._deleteKey(node.children[idx-1],k);
+      else this._deleteKey(node.children[idx],k);
+    }
+  }
+  _deleteInternal(node,idx){
+    const k=node.keys[idx]; const t=this.t;
+    if(node.children[idx].keys.length>=t){
+      const pred=this._getPred(node,idx);
+      this.steps.push(`Replacing ${k} with predecessor ${pred}.`);
+      node.keys[idx]=pred; this._deleteKey(node.children[idx],pred);
+    } else if(node.children[idx+1].keys.length>=t){
+      const succ=this._getSucc(node,idx);
+      this.steps.push(`Replacing ${k} with successor ${succ}.`);
+      node.keys[idx]=succ; this._deleteKey(node.children[idx+1],succ);
+    } else {
+      this.steps.push(`Merging children around key ${k}.`);
+      this._merge(node,idx);
+      this._deleteKey(node.children[idx],k);
+    }
+  }
+  _getPred(node,idx){ let cur=node.children[idx]; while(!cur.leaf) cur=cur.children[cur.children.length-1]; return cur.keys[cur.keys.length-1]; }
+  _getSucc(node,idx){ let cur=node.children[idx+1]; while(!cur.leaf) cur=cur.children[0]; return cur.keys[0]; }
+  _fill(node,idx){
+    const t=this.t;
+    if(idx!==0 && node.children[idx-1].keys.length>=t){ this.steps.push('Borrowing key from left sibling.'); this._borrowFromPrev(node,idx); }
+    else if(idx!==node.keys.length && node.children[idx+1].keys.length>=t){ this.steps.push('Borrowing key from right sibling.'); this._borrowFromNext(node,idx); }
+    else{
+      if(idx!==node.keys.length) this._merge(node,idx); else this._merge(node,idx-1);
+    }
+  }
+  _borrowFromPrev(node,idx){
+    const child=node.children[idx], sibling=node.children[idx-1];
+    child.keys.unshift(node.keys[idx-1]);
+    if(!child.leaf) child.children.unshift(sibling.children.pop());
+    node.keys[idx-1]=sibling.keys.pop();
+  }
+  _borrowFromNext(node,idx){
+    const child=node.children[idx], sibling=node.children[idx+1];
+    child.keys.push(node.keys[idx]);
+    if(!child.leaf) child.children.push(sibling.children.shift());
+    node.keys[idx]=sibling.keys.shift();
+  }
+  _merge(node,idx){
+    const child=node.children[idx], sibling=node.children[idx+1];
+    child.keys.push(node.keys[idx]);
+    child.keys=child.keys.concat(sibling.keys);
+    if(!child.leaf) child.children=child.children.concat(sibling.children);
+    node.keys.splice(idx,1); node.children.splice(idx+1,1);
+  }
+  searchPath(k){
+    this.steps=[]; let node=this.root; let path=[];
+    while(node){
+      path.push(`[${node.keys.join(' | ')}]`);
+      let i=0; while(i<node.keys.length && k>node.keys[i]) i++;
+      if(i<node.keys.length && node.keys[i]===k){ this.steps.push(`Path: ${path.join(' → ')}`); this.steps.push(`Key ${k} found.`); return true; }
+      if(node.leaf){ this.steps.push(`Path: ${path.join(' → ')}`); this.steps.push(`Key ${k} not found.`); return false; }
+      node=node.children[i];
+    }
+    return false;
+  }
+  traverse(){ const out=[]; (function rec(n){ if(!n) return; for(let i=0;i<n.keys.length;i++){ if(!n.leaf) rec(n.children[i]); out.push(n.keys[i]); } if(!n.leaf) rec(n.children[n.children.length-1]); })(this.root); return out; }
+  countNodes(){ let c=0; (function rec(n){ if(!n) return; c++; if(!n.leaf) n.children.forEach(rec); })(this.root); return c; }
+  countKeys(){ let c=0; (function rec(n){ if(!n) return; c+=n.keys.length; if(!n.leaf) n.children.forEach(rec); })(this.root); return c; }
+  height(){ let h=0; let n=this.root; while(n){ h++; if(n.leaf) break; n=n.children[0]; } return h; }
+  validate(){
+    let ok=true; const errs=[]; const t=this.t;
+    const rec=(node,depth,isRoot)=>{
+      for(let i=1;i<node.keys.length;i++) if(node.keys[i-1]>=node.keys[i]){ ok=false; errs.push('Keys not sorted in a node.'); }
+      if(!isRoot && node.keys.length < t-1){ ok=false; errs.push('Node underflow (too few keys).'); }
+      if(node.keys.length > 2*t-1){ ok=false; errs.push('Node overflow (too many keys).'); }
+      if(!node.leaf && node.children.length !== node.keys.length+1){ ok=false; errs.push('Children count mismatch.'); }
+      let leafDepths=[];
+      if(node.leaf){ leafDepths.push(depth); }
+      else node.children.forEach(c=>{ const r=rec(c,depth+1,false); leafDepths=leafDepths.concat(r); });
+      return leafDepths;
+    };
+    const depths=rec(this.root,0,true);
+    if(new Set(depths).size>1){ ok=false; errs.push('Leaves are not all at the same depth.'); }
+    return {ok, errs};
+  }
+}
+
+/* ---------------------------------------------------------------------
+   4. B+ TREE (real implementation with linked leaves)
+--------------------------------------------------------------------- */
+class BPlusNode{
+  constructor(leaf){ this.leaf=leaf; this.keys=[]; this.children=[]; this.next=null; this.id=uid(); }
+}
+class BPlusTree{
+  constructor(t=2){ this.t=t; this.root=new BPlusNode(true); this.steps=[]; }
+  setDegree(t){ this.t=t; this.root=new BPlusNode(true); this.steps=[]; }
+  findLeaf(k){ let node=this.root; while(!node.leaf){ let i=0; while(i<node.keys.length && k>=node.keys[i]) i++; node=node.children[i]; } return node; }
+  search(k){ const leaf=this.findLeaf(k); return leaf.keys.includes(k); }
+  insert(k){
+    this.steps=[];
+    if(this.search(k)){ this.steps.push(`Key ${k} already exists.`); return false; }
+    this.steps.push(`Inserting key ${k}...`);
+    this._insertRec(this.root,null,k);
+    if(this.root.keys.length===0 && !this.root.leaf && this.root.children.length===1){ this.root=this.root.children[0]; }
+    return true;
+  }
+  _insertRec(node,parent,k){
+    if(node.leaf){
+      let i=0; while(i<node.keys.length && node.keys[i]<k) i++;
+      node.keys.splice(i,0,k);
+      this.steps.push(`Inserted key ${k} into leaf.`);
+      if(node.keys.length>2*this.t-1) this._splitLeaf(node,parent);
+    } else {
+      let i=0; while(i<node.keys.length && k>=node.keys[i]) i++;
+      this._insertRec(node.children[i],node,k);
+      if(node.keys.length>2*this.t-1) this._splitInternal(node,parent);
+    }
+  }
+  _splitLeaf(node,parent){
+    const mid=Math.ceil(node.keys.length/2);
+    const right=new BPlusNode(true);
+    right.keys=node.keys.splice(mid);
+    right.next=node.next; node.next=right;
+    const upKey=right.keys[0];
+    this.steps.push(`Leaf overflowed. Splitting; promoting separator key ${upKey}.`);
+    this._insertIntoParent(node,upKey,right,parent);
+  }
+  _splitInternal(node,parent){
+    const mid=Math.floor(node.keys.length/2);
+    const upKey=node.keys[mid];
+    const right=new BPlusNode(false);
+    right.keys=node.keys.splice(mid+1);
+    node.keys.splice(mid,1);
+    right.children=node.children.splice(mid+1);
+    this.steps.push(`Internal node overflowed. Splitting; promoting separator key ${upKey}.`);
+    this._insertIntoParent(node,upKey,right,parent);
+  }
+  _insertIntoParent(left,key,right,parent){
+    if(!parent){
+      const newRoot=new BPlusNode(false);
+      newRoot.keys=[key]; newRoot.children=[left,right];
+      this.root=newRoot;
+      this._fixParents(this.root,null);
+      return;
+    }
+    const i=parent.children.indexOf(left);
+    parent.keys.splice(i,0,key);
+    parent.children.splice(i+1,0,right);
+    this._fixParents(this.root,null);
+  }
+  _fixParents(){ /* parent refs derived on the fly during traversal; no-op for simplicity */ }
+  delete(k){
+    this.steps=[];
+    if(!this.search(k)){ this.steps.push(`Key ${k} not found.`); return false; }
+    this.steps.push(`Deleting key ${k}...`);
+    this._deleteRec(this.root,null,-1,k);
+    if(!this.root.leaf && this.root.keys.length===0) this.root=this.root.children[0];
+    return true;
+  }
+  _minKey(node){ while(!node.leaf) node=node.children[0]; return node.keys[0]; }
+  _deleteRec(node,parent,parentIdx,k){
+    if(node.leaf){
+      const i=node.keys.indexOf(k);
+      if(i>-1){ node.keys.splice(i,1); this.steps.push(`Removed key ${k} from leaf.`); }
+    } else {
+      let i=0; while(i<node.keys.length && k>=node.keys[i]) i++;
+      this._deleteRec(node.children[i],node,i,k);
+    }
+    const minKeys=this.t-1;
+    if(node===this.root) return;
+    if(node.keys.length>=minKeys) { this._syncSeparator(parent,parentIdx); return; }
+    // underflow: borrow or merge
+    const leftSib = parentIdx>0 ? parent.children[parentIdx-1] : null;
+    const rightSib = parentIdx<parent.children.length-1 ? parent.children[parentIdx+1] : null;
+    if(leftSib && leftSib.keys.length>minKeys){
+      this.steps.push('Borrowing from left sibling.');
+      if(node.leaf){
+        node.keys.unshift(leftSib.keys.pop());
+        parent.keys[parentIdx-1]=node.keys[0];
+      } else {
+        node.keys.unshift(parent.keys[parentIdx-1]);
+        parent.keys[parentIdx-1]=leftSib.keys.pop();
+        node.children.unshift(leftSib.children.pop());
+      }
+    } else if(rightSib && rightSib.keys.length>minKeys){
+      this.steps.push('Borrowing from right sibling.');
+      if(node.leaf){
+        node.keys.push(rightSib.keys.shift());
+        parent.keys[parentIdx]=rightSib.keys[0];
+      } else {
+        node.keys.push(parent.keys[parentIdx]);
+        parent.keys[parentIdx]=rightSib.keys.shift();
+        node.children.push(rightSib.children.shift());
+      }
+    } else if(leftSib){
+      this.steps.push('Merging with left sibling.');
+      if(node.leaf){
+        leftSib.keys=leftSib.keys.concat(node.keys);
+        leftSib.next=node.next;
+      } else {
+        leftSib.keys.push(parent.keys[parentIdx-1]);
+        leftSib.keys=leftSib.keys.concat(node.keys);
+        leftSib.children=leftSib.children.concat(node.children);
+      }
+      parent.keys.splice(parentIdx-1,1);
+      parent.children.splice(parentIdx,1);
+    } else if(rightSib){
+      this.steps.push('Merging with right sibling.');
+      if(node.leaf){
+        node.keys=node.keys.concat(rightSib.keys);
+        node.next=rightSib.next;
+      } else {
+        node.keys.push(parent.keys[parentIdx]);
+        node.keys=node.keys.concat(rightSib.keys);
+        node.children=node.children.concat(rightSib.children);
+      }
+      parent.keys.splice(parentIdx,1);
+      parent.children.splice(parentIdx+1,1);
+    }
+  }
+  _syncSeparator(parent,idx){
+    if(!parent || idx<=0) return;
+    const node=parent.children[idx];
+    parent.keys[idx-1]=this._minKey(node);
+  }
+  rangeSearch(a,b){
+    this.steps=[];
+    let node=this.root; while(!node.leaf){ let i=0; while(i<node.keys.length && a>=node.keys[i]) i++; node=node.children[i]; }
+    const result=[];
+    while(node){ node.keys.forEach(k=>{ if(k>=a && k<=b) result.push(k); }); if(node.keys.length && node.keys[node.keys.length-1]>b) break; node=node.next; }
+    this.steps.push(`Range [${a}, ${b}] → ${result.join(', ')||'(none)'}`);
+    return result;
+  }
+  leafChain(){ let node=this.root; while(!node.leaf) node=node.children[0]; const chain=[]; while(node){ chain.push([...node.keys]); node=node.next; } return chain; }
+  traverse(){ return this.leafChain().flat(); }
+  countNodes(){ let c=0; (function rec(n){ if(!n) return; c++; if(!n.leaf) n.children.forEach(rec); })(this.root); return c; }
+  countKeys(){ return this.leafChain().flat().length; }
+  height(){ let h=0; let n=this.root; while(n){ h++; if(n.leaf) break; n=n.children[0]; } return h; }
+  validate(){
+    let ok=true; const errs=[];
+    const rec=(node,depth,isRoot)=>{
+      for(let i=1;i<node.keys.length;i++) if(node.keys[i-1]>=node.keys[i]) { ok=false; errs.push('Keys not sorted.'); }
+      if(!node.leaf && node.children.length!==node.keys.length+1){ ok=false; errs.push('Children/keys mismatch.'); }
+      let depths=[];
+      if(node.leaf) depths.push(depth); else node.children.forEach(c=>depths=depths.concat(rec(c,depth+1,false)));
+      return depths;
+    };
+    const depths=rec(this.root,0,true);
+    if(new Set(depths).size>1){ ok=false; errs.push('Leaves not all at same level.'); }
+    const chain=this.leafChain().flat();
+    for(let i=1;i<chain.length;i++) if(chain[i-1]>chain[i]){ ok=false; errs.push('Leaf chain not sorted.'); }
+    return {ok, errs};
+  }
+}
+
+/* ---------------------------------------------------------------------
+   5. TRIE (real implementation)
+--------------------------------------------------------------------- */
+class TrieNode{ constructor(char){ this.char=char; this.children={}; this.isEnd=false; this.id=uid(); } }
+class Trie{
+  constructor(){ this.root=new TrieNode(''); this.steps=[]; this.wordCount=0; }
+  insert(word){
+    this.steps=[];
+    word=word.toLowerCase();
+    if(this.search(word,false)){ this.steps.push(`Word "${word}" already exists.`); return false; }
+    let node=this.root; let path=['root'];
+    for(const ch of word){
+      if(!node.children[ch]){ node.children[ch]=new TrieNode(ch); this.steps.push(`Created new node for '${ch}'.`); }
+      node=node.children[ch]; path.push(ch);
+    }
+    node.isEnd=true; this.wordCount++;
+    this.steps.push(`Path: ${path.join(' → ')}`);
+    this.steps.push(`Word "${word}" inserted.`);
+    return true;
+  }
+  search(word, log=true){
+    word=word.toLowerCase();
+    if(log) this.steps=[];
+    let node=this.root; let path=['root'];
+    for(const ch of word){ if(!node.children[ch]){ if(log){ this.steps.push(`Path: ${path.join(' → ')}`); this.steps.push('Word Not Found ✗'); } return false;} node=node.children[ch]; path.push(ch); }
+    const found=node.isEnd;
+    if(log){ this.steps.push(`Path: ${path.join(' → ')}`); this.steps.push(found?'Word Found ✓':'Word Not Found ✗'); }
+    return found;
+  }
+  startsWith(prefix){
+    this.steps=[]; prefix=prefix.toLowerCase();
+    let node=this.root; let path=['root'];
+    for(const ch of prefix){ if(!node.children[ch]){ this.steps.push(`Prefix "${prefix}" not found.`); return []; } node=node.children[ch]; path.push(ch); }
+    this.steps.push(`Prefix path: ${path.join(' → ')}`);
+    const words=[]; this._collect(node,prefix,words);
+    this.steps.push(`Found ${words.length} word(s): ${words.join(', ')||'(none)'}`);
+    return words;
+  }
+  _collect(node,prefix,out){ if(node.isEnd) out.push(prefix); for(const ch in node.children) this._collect(node.children[ch],prefix+ch,out); }
+  delete(word){
+    this.steps=[]; word=word.toLowerCase();
+    if(!this.search(word,false)){ this.steps.push(`Word "${word}" not found.`); return false; }
+    this.steps.push(`Deleting "${word}" without breaking other words...`);
+    this._deleteRec(this.root,word,0);
+    this.wordCount--;
+    this.steps.push(`Word "${word}" deleted.`);
+    return true;
+  }
+  _deleteRec(node,word,idx){
+    if(idx===word.length){ node.isEnd=false; return Object.keys(node.children).length===0; }
+    const ch=word[idx]; const child=node.children[ch];
+    if(!child) return false;
+    const shouldDeleteChild=this._deleteRec(child,word,idx+1);
+    if(shouldDeleteChild){ delete node.children[ch]; this.steps.push(`Removed unused node '${ch}'.`); return Object.keys(node.children).length===0 && !node.isEnd; }
+    return false;
+  }
+  allWords(){ const out=[]; this._collect(this.root,'',out); return out.sort(); }
+  countNodes(){ let c=0; (function rec(n){ c++; for(const k in n.children) rec(n.children[k]); })(this.root); return c; }
+  stats(){
+    const words=this.allWords();
+    const chars=words.reduce((a,w)=>a+w.length,0);
+    const longest=words.reduce((a,w)=>w.length>a.length?w:a,'');
+    return {count:words.length, chars, nodes:this.countNodes(), longest: longest||'—'};
+  }
+  validate(){
+    let ok=true; const errs=[];
+    const rec=(node)=>{ for(const ch in node.children){ if(!(ch.length===1)){ ok=false; errs.push('Invalid character key.'); } rec(node.children[ch]); } };
+    rec(this.root);
+    return {ok, errs};
+  }
+}
+
+/* ---------------------------------------------------------------------
+   6. GENERIC LAYOUT ENGINE
+   Converts a data-structure-specific tree into a generic render tree:
+   { id, label, kind, color, children:[...], meta:{} }
+   Then assigns x,y grid coordinates via a subtree-width algorithm
+   (works for binary AND multi-way trees).
+--------------------------------------------------------------------- */
+function assignLayout(root){
+  if(!root) return null;
+  let leafCounter=0;
+  function walk(node, depth){
+    node.depth=depth;
+    if(!node.children || node.children.length===0){
+      node.x=leafCounter; leafCounter++; node.y=depth;
+      return node.x;
+    }
+    const childXs=node.children.map(c=>walk(c,depth+1));
+    node.x=childXs.reduce((a,b)=>a+b,0)/childXs.length;
+    node.y=depth;
+    return node.x;
+  }
+  walk(root,0);
+  return root;
+}
+
+function flattenRender(root){
+  const nodes=[]; const edges=[];
+  function rec(node,parent){
+    nodes.push(node);
+    if(parent) edges.push({from:parent, to:node});
+    (node.children||[]).forEach(c=>rec(c,node));
+  }
+  if(root) rec(root,null);
+  return {nodes, edges};
+}
+
+/* ---------------------------------------------------------------------
+   7. ADAPTERS: internal DS node -> generic render node
+--------------------------------------------------------------------- */
+function adaptAVL(node){
+  if(!node) return null;
+  return { id:node.id, label:String(node.value), kind:'circle', color:'default',
+    meta:{height:node.height, bf:(node.left?node.left.height:0)-(node.right?node.right.height:0)},
+    children:[node.left,node.right].map(adaptAVL).filter(Boolean) };
+}
+function adaptRB(tree,node){
+  if(!node || node===tree.NIL) return null;
+  const kids=[node.left,node.right].filter(c=>c!==tree.NIL).map(c=>adaptRB(tree,c));
+  return { id:node.id, label:String(node.value), kind:'circle', color: node.color==='R'?'red':'black',
+    meta:{color:node.color==='R'?'Red':'Black'}, children:kids };
+}
+function adaptBTree(node){
+  if(!node) return null;
+  return { id:node.id, label:node.keys.join(' | '), kind:'rect', color:'default',
+    meta:{keys:node.keys.length, leaf:node.leaf}, children:(node.children||[]).map(adaptBTree).filter(Boolean) };
+}
+function adaptBPlus(node,isRootCall){
+  if(!node) return null;
+  return { id:node.id, label:node.keys.join(' | '), kind:'rect', color: node.leaf?'leaf':'default',
+    meta:{leaf:node.leaf}, isLeaf:node.leaf, ref:node,
+    children: node.leaf? [] : node.children.map(c=>adaptBPlus(c)).filter(Boolean) };
+}
+function adaptTrie(node,label){
+  if(!node) return null;
+  const kids=Object.keys(node.children).sort().map(ch=>adaptTrie(node.children[ch],ch));
+  return { id:node.id, label: label===undefined?'•':label, kind:'circle',
+    color: node.isEnd? 'end':'default', meta:{isEnd:node.isEnd}, children:kids };
+}
+
+/* ---------------------------------------------------------------------
+   8. SVG RENDERER
+--------------------------------------------------------------------- */
+const NODE_R=24;            // circle radius
+const RECT_H=42;            // rect node height
+const CHAR_W=9.5;           // approx px per character for rect sizing
+const LEVEL_GAP=96;         // vertical gap between depth levels
+const H_GAP=64;             // horizontal gap unit between leaf slots
+const PAD=60;
+
+function nodeWidth(rnode){
+  if(rnode.kind==='rect') return Math.max(56, rnode.label.length*CHAR_W+28);
+  return NODE_R*2;
+}
+
+function renderTreeSVG(svg, root, opts){
+  opts=opts||{};
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  if(!root){ svg.style.display='none'; return; }
+  svg.style.display='block';
+  assignLayout(root);
+  const {nodes, edges}=flattenRender(root);
+  const maxDepth=Math.max(...nodes.map(n=>n.y));
+  const maxX=Math.max(...nodes.map(n=>n.x));
+  const width=Math.max(680, (maxX+1)*H_GAP*2 + PAD*2);
+  const height=(maxDepth+1)*LEVEL_GAP + PAD*2;
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+
+  function px(n){ return PAD + n.x*H_GAP*2 + H_GAP; }
+  function py(n){ return PAD + n.y*LEVEL_GAP; }
+
+  const svgNS='http://www.w3.org/2000/svg';
+  const edgeGroup=document.createElementNS(svgNS,'g');
+  const nodeGroup=document.createElementNS(svgNS,'g');
+
+  edges.forEach(e=>{
+    const x1=px(e.from), y1=py(e.from)+(e.from.kind==='rect'?RECT_H/2:NODE_R);
+    const x2=px(e.to), y2=py(e.to)-(e.to.kind==='rect'?RECT_H/2:NODE_R);
+    const path=document.createElementNS(svgNS,'path');
+    const midY=(y1+y2)/2;
+    path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`);
+    path.setAttribute('class','svg-edge');
+    edgeGroup.appendChild(path);
+  });
+
+  // B+ tree leaf chain dashed connectors
+  if(opts.leafChainOrder && opts.leafChainOrder.length>1){
+    for(let i=0;i<opts.leafChainOrder.length-1;i++){
+      const a=opts.leafChainOrder[i], b=opts.leafChainOrder[i+1];
+      const an=nodes.find(n=>n.id===a), bn=nodes.find(n=>n.id===b);
+      if(!an||!bn) continue;
+      const x1=px(an)+nodeWidth(an)/2, y1=py(an);
+      const x2=px(bn)-nodeWidth(bn)/2, y2=py(bn);
+      const path=document.createElementNS(svgNS,'path');
+      path.setAttribute('d', `M ${x1} ${y1} C ${(x1+x2)/2} ${y1-30}, ${(x1+x2)/2} ${y2-30}, ${x2} ${y2}`);
+      path.setAttribute('class','svg-leafchain'); path.setAttribute('marker-end','url(#arrowhead)');
+      edgeGroup.appendChild(path);
+    }
+  }
+
+  nodes.forEach(n=>{
+    const g=document.createElementNS(svgNS,'g');
+    g.setAttribute('data-id', n.id);
+    const cx=px(n), cy=py(n);
+    let fill='var(--panel-solid)', stroke='var(--accent)';
+    if(n.color==='red'){ fill='color-mix(in srgb, var(--red) 22%, var(--bg2))'; stroke='var(--red)'; }
+    else if(n.color==='black'){ fill='var(--black-node)'; stroke='#4b5568'; }
+    else if(n.color==='end'){ fill='color-mix(in srgb, var(--accent) 30%, var(--bg2))'; stroke='var(--accent)'; }
+    else if(n.color==='leaf'){ fill='color-mix(in srgb, var(--accent-warm) 16%, var(--bg2))'; stroke='var(--accent-warm)'; }
+    if(opts.highlightIds && opts.highlightIds.includes(n.id)){ stroke='var(--accent2)'; }
+
+    if(n.kind==='rect'){
+      const w=nodeWidth(n);
+      const rect=document.createElementNS(svgNS,'rect');
+      rect.setAttribute('x', cx-w/2); rect.setAttribute('y', cy-RECT_H/2);
+      rect.setAttribute('width', w); rect.setAttribute('height', RECT_H);
+      rect.setAttribute('rx', 8);
+      rect.setAttribute('class','svg-node-rect');
+      rect.setAttribute('style', `fill:${fill}; stroke:${stroke};`);
+      g.appendChild(rect);
+      const txt=document.createElementNS(svgNS,'text');
+      txt.setAttribute('x', cx); txt.setAttribute('y', cy+1);
+      txt.setAttribute('class','svg-label'); txt.setAttribute('font-size','13');
+      txt.textContent = n.label || '∅';
+      g.appendChild(txt);
+      if(n.meta && n.meta.leaf!==undefined){
+        const tag=document.createElementNS(svgNS,'text');
+        tag.setAttribute('x', cx); tag.setAttribute('y', cy+RECT_H/2+13);
+        tag.setAttribute('class','svg-meta'); tag.textContent = n.meta.leaf? 'leaf':'internal';
+        g.appendChild(tag);
+      }
+    } else {
+      const circle=document.createElementNS(svgNS,'circle');
+      circle.setAttribute('cx',cx); circle.setAttribute('cy',cy); circle.setAttribute('r',NODE_R);
+      circle.setAttribute('class','svg-node-circle');
+      circle.setAttribute('style', `fill:${fill}; stroke:${stroke};`);
+      g.appendChild(circle);
+      const txt=document.createElementNS(svgNS,'text');
+      txt.setAttribute('x',cx); txt.setAttribute('y',cy+1);
+      txt.setAttribute('class','svg-label'); txt.setAttribute('font-size', n.label.length>2?'11':'13');
+      if(n.color==='black') txt.setAttribute('fill','#cbd5e1');
+      txt.textContent=n.label;
+      g.appendChild(txt);
+      if(n.meta && n.meta.bf!==undefined){
+        const tag=document.createElementNS(svgNS,'text');
+        tag.setAttribute('x',cx); tag.setAttribute('y',cy-NODE_R-8);
+        tag.setAttribute('class','svg-meta'); tag.textContent=`h:${n.meta.height} bf:${n.meta.bf}`;
+        g.appendChild(tag);
+      }
+      if(n.meta && n.meta.isEnd){
+        const dot=document.createElementNS(svgNS,'circle');
+        dot.setAttribute('cx',cx); dot.setAttribute('cy',cy); dot.setAttribute('r',3.5);
+        dot.setAttribute('fill','var(--bg)');
+        g.appendChild(dot);
+      }
+    }
+    const title=document.createElementNS(svgNS,'title');
+    title.textContent = n.kind==='rect' ? `Keys: ${n.label}` : `Value: ${n.label}`;
+    g.appendChild(title);
+    nodeGroup.appendChild(g);
+  });
+
+  const defs=document.createElementNS(svgNS,'defs');
+  defs.innerHTML = `<marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--accent-warm)"/></marker>`;
+  svg.appendChild(defs);
+  svg.appendChild(edgeGroup);
+  svg.appendChild(nodeGroup);
+}
+
+/* ---------------------------------------------------------------------
+   9. TREE TYPE CONFIG
+--------------------------------------------------------------------- */
+const TREE_TYPES = {
+  avl: {
+    name:'AVL Tree', tagline:'Self-balancing Binary Search Tree using rotations.',
+    dot:'#5eead4', complexity:'O(log n) search / insert / delete',
+    about:'An AVL tree is a self-balancing BST where the heights of the two child subtrees of any node differ by at most 1. After every insertion or deletion, rotations restore this balance.',
+    applications:['Databases','Memory indexing','Search-heavy applications'],
+    legend:[{c:'var(--accent)',l:'Node'}],
+    supportsPrefix:false, supportsDegree:false, supportsRange:false, numeric:true,
+  },
+  rb: {
+    name:'Red-Black Tree', tagline:'Self-balancing BST using red and black coloring rules.',
+    dot:'#ef4444', complexity:'O(log n) search / insert / delete',
+    about:'A Red-Black tree keeps itself approximately balanced using a coloring scheme: every node is red or black, the root and leaves are black, no red node has a red child, and every root-to-leaf path has the same number of black nodes.',
+    applications:['Operating systems','Ordered maps','Libraries'],
+    legend:[{c:'#ef4444',l:'Red'},{c:'#1e2537',l:'Black'}],
+    supportsPrefix:false, supportsDegree:false, supportsRange:false, numeric:true,
+  },
+  btree: {
+    name:'B-Tree', tagline:'Balanced multi-way search tree commonly used in databases and file systems.',
+    dot:'#a78bfa', complexity:'O(log n) search / insert / delete',
+    about:'A B-Tree is a balanced multi-way search tree where each node can hold multiple keys and children. Nodes split when they overflow and borrow/merge with siblings when they underflow, keeping all leaves at the same depth.',
+    applications:['Databases','File systems','Disk storage'],
+    legend:[{c:'var(--accent2)',l:'Node'}],
+    supportsPrefix:false, supportsDegree:true, supportsRange:false, numeric:true,
+  },
+  bplus: {
+    name:'B+ Tree', tagline:'Multi-way tree with all records stored at the leaf level and linked sequentially.',
+    dot:'#fb923c', complexity:'O(log n) search/insert/delete · efficient range search',
+    about:'A B+ Tree keeps all actual records in leaf nodes, which are linked together in a list. Internal nodes hold only separator keys to guide search. This makes range queries very fast since leaves can be scanned sequentially.',
+    applications:['Database indexes','File systems','Range queries'],
+    legend:[{c:'var(--accent)',l:'Internal'},{c:'var(--accent-warm)',l:'Leaf'}],
+    supportsPrefix:false, supportsDegree:true, supportsRange:true, numeric:true,
+  },
+  trie: {
+    name:'Trie', tagline:'Prefix tree optimized for storing and searching strings.',
+    dot:'#5eead4', complexity:'O(L) search / insert / delete · O(P+K) prefix search',
+    about:'A Trie (prefix tree) stores strings character by character along root-to-node paths. Nodes marked as "end of word" complete a stored word, letting shared prefixes reuse the same path — ideal for autocomplete.',
+    applications:['Autocomplete','Spell checking','Dictionary lookup','IP routing'],
+    legend:[{c:'var(--accent)',l:'Node'},{c:'#34d399',l:'End of word'}],
+    supportsPrefix:true, supportsDegree:false, supportsRange:false, numeric:false,
+  },
+};
+
+/* ---------------------------------------------------------------------
+   10. APP CONTROLLER
+--------------------------------------------------------------------- */
+const App = {
+  currentType:'avl',
+  trees:{}, // instances keyed by type
+  degree:2,
+  zoom:1,
+  playTimer:null,
+  activeStepIdx:-1,
+  lastLeafChainIds:null,
+  lastHighlightIds:[],
+
+  init(){
+    this.trees.avl=new AVLTree();
+    this.trees.rb=new RedBlackTree();
+    this.trees.btree=new BTree(2);
+    this.trees.bplus=new BPlusTree(2);
+    this.trees.trie=new Trie();
+
+    this.buildSidebar();
+    this.bindEvents();
+    this.loadTheme();
+    this.selectType('avl', true);
+    this.loadDemo();
+  },
+
+  loadDemo(){
+    [30,20,40,10,25,35,50].forEach(v=>this.trees.avl.insert(v));
+    this.trees.avl.steps=['Initial demo tree loaded: 30, 20, 40, 10, 25, 35, 50.'];
+    this.render();
+  },
+
+  buildSidebar(){
+    const wrap=document.getElementById('treeOptions');
+    wrap.innerHTML='';
+    Object.entries(TREE_TYPES).forEach(([key,cfg])=>{
+      const div=document.createElement('div');
+      div.className='tree-option'; div.id='opt-'+key;
+      div.innerHTML = `<button aria-label="Select ${cfg.name}">
+        <div style="display:flex;gap:10px;">
+          <span class="dot" style="background:${cfg.dot}"></span>
+          <span>
+            <div class="name">${cfg.name}</div>
+            <div class="desc">${cfg.tagline}</div>
+          </span>
+        </div>
+      </button>`;
+      div.querySelector('button').addEventListener('click', ()=>this.selectType(key));
+      wrap.appendChild(div);
+    });
+  },
+
+  selectType(key, silent){
+    if(this.playTimer){ clearInterval(this.playTimer); this.playTimer=null; const pb=document.getElementById('stepPlay'); if(pb) pb.textContent='▶ Play'; }
+    this.currentType=key;
+    document.querySelectorAll('.tree-option').forEach(el=>el.classList.remove('active'));
+    document.getElementById('opt-'+key).classList.add('active');
+    const cfg=TREE_TYPES[key];
+    document.getElementById('treeTitle').textContent=cfg.name;
+    document.getElementById('treeTagline').textContent=cfg.tagline;
+    document.getElementById('treeComplexityChip').textContent=cfg.complexity;
+    document.getElementById('aboutBox').textContent=cfg.about;
+    document.getElementById('appsBox').innerHTML=cfg.applications.map(a=>'• '+a).join('<br>');
+    document.getElementById('prefixBtn').style.display = cfg.supportsPrefix? 'inline-flex':'none';
+    document.getElementById('degreeWrap').style.display = cfg.supportsDegree? 'flex':'none';
+    document.getElementById('rangeRow').style.display = cfg.supportsRange? 'flex':'none';
+    document.getElementById('valueInput').placeholder = cfg.numeric? 'Enter values, e.g. 10, 20, 30' : 'Enter words, e.g. apple, application';
+    document.getElementById('deleteBtn').style.display='inline-flex';
+    document.getElementById('legend').innerHTML = cfg.legend.map(l=>`<span><i style="background:${l.c}"></i>${l.l}</span>`).join('');
+    this.buildTraversalTabs();
+    this.buildInfoGrid();
+    this.clearMessage();
+    this.hideValidate();
+    this.render();
+  },
+
+  getTree(){ return this.trees[this.currentType==='btree'?'btree':this.currentType==='bplus'?'bplus':this.currentType]; },
+
+  treeHasData(){
+    const t=this.getTree();
+    if(this.currentType==='avl' || this.currentType==='rb') return t.count()>0;
+    if(this.currentType==='btree' || this.currentType==='bplus') return t.countKeys()>0;
+    if(this.currentType==='trie') return t.wordCount>0;
+    return false;
+  },
+
+  buildInfoGrid(){
+    const cfg=TREE_TYPES[this.currentType];
+    const grid=document.getElementById('infoGrid');
+    grid.innerHTML = `
+      <div class="info-box"><div class="k">What is it?</div><div class="v">${cfg.about.split('.')[0]}.</div></div>
+      <div class="info-box"><div class="k">Main advantage</div><div class="v">${cfg.complexity}</div></div>
+      <div class="info-box"><div class="k">Applications</div><div class="v">${cfg.applications.join(', ')}</div></div>
+      <div class="info-box"><div class="k">Tip</div><div class="v"><span class="tooltip-term">Hover tree nodes<span class="tip-bubble">Hover a node in the diagram to see its exact value / keys in a tooltip.</span></span> for details.</div></div>
+    `;
+  },
+
+  buildTraversalTabs(){
+    const wrap=document.getElementById('traversalTabs');
+    let tabs=[];
+    if(this.currentType==='avl'||this.currentType==='rb') tabs=['Inorder','Preorder','Postorder','Level Order'];
+    else if(this.currentType==='btree') tabs=['Sorted Keys'];
+    else if(this.currentType==='bplus') tabs=['Leaf Chain','Sorted Keys'];
+    else tabs=['Stored Words'];
+    wrap.innerHTML='';
+    this.activeTab=tabs[0];
+    tabs.forEach((t,i)=>{
+      const b=document.createElement('button');
+      b.className='tab'+(i===0?' active':''); b.textContent=t;
+      b.addEventListener('click',()=>{
+        wrap.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active'); this.activeTab=t; this.renderTraversals();
+      });
+      wrap.appendChild(b);
+    });
+    this.renderTraversals();
+  },
+
+  renderTraversals(){
+    const out=document.getElementById('traversalOutput');
+    const t=this.getTree();
+    let html='';
+    const line=(label,arr)=>`<div class="traversal-line"><b>${label}</b>${arr.length? arr.join(' → '):'—'}</div>`;
+    if(this.currentType==='avl' || this.currentType==='rb'){
+      const map={'Inorder':t.inorder(),'Preorder':t.preorder(),'Postorder':t.postorder(),'Level Order':t.levelorder()};
+      html=line(this.activeTab+':', map[this.activeTab]||[]);
+    } else if(this.currentType==='btree'){
+      html=line('Sorted Keys:', t.traverse());
+    } else if(this.currentType==='bplus'){
+      if(this.activeTab==='Leaf Chain'){
+        const chain=t.leafChain().map(a=>'['+a.join(',')+']');
+        html=`<div class="traversal-line"><b>Leaf chain:</b>${chain.join(' → ')||'—'}</div>`;
+      } else html=line('Sorted Keys:', t.traverse());
+    } else if(this.currentType==='trie'){
+      html=line('Words:', t.allWords());
+    }
+    out.innerHTML=html;
+  },
+
+  buildProps(){
+    const body=document.getElementById('propsBody');
+    const t=this.getTree(); let rows=[];
+    if(this.currentType==='avl'){
+      const n=t.count();
+      const vals=t.inorder();
+      rows=[['Nodes',n],['Height',t.root?t.root.height:0],['Root',t.root?t.root.value:'—'],
+        ['Minimum',vals.length?Math.min(...vals):'—'],['Maximum',vals.length?Math.max(...vals):'—'],
+        ['Balance Status', n? (t.validate().ok?'Balanced':'Unbalanced'):'—']];
+    } else if(this.currentType==='rb'){
+      const n=t.count(); const vals=t.inorder();
+      rows=[['Nodes',n],['Height',t.height(t.root)],['Root',t.root!==t.NIL?t.root.value:'—'],
+        ['Minimum',vals.length?Math.min(...vals):'—'],['Maximum',vals.length?Math.max(...vals):'—'],
+        ['Root Color', t.root!==t.NIL? (t.root.color==='B'?'Black':'Red'):'—']];
+    } else if(this.currentType==='btree'){
+      rows=[['Order (2t)',2*t.t],['Minimum Degree (t)',t.t],['Number of Nodes',t.countNodes()],
+        ['Number of Keys',t.countKeys()],['Height',t.height()],['Root Keys', t.root.keys.join(', ')||'—']];
+    } else if(this.currentType==='bplus'){
+      rows=[['Order (2t)',2*t.t],['Minimum Degree (t)',t.t],['Number of Nodes',t.countNodes()],
+        ['Number of Keys',t.countKeys()],['Height',t.height()],['Root Keys', t.root.keys.join(', ')||'—']];
+    } else if(this.currentType==='trie'){
+      const s=t.stats();
+      rows=[['Words',s.count],['Characters',s.chars],['Nodes',s.nodes],['Longest Word',s.longest]];
+    }
+    body.innerHTML=rows.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  },
+
+  buildSteps(){
+    const t=this.getTree();
+    const steps=t.steps && t.steps.length? t.steps : ['No operation performed yet.'];
+    this.steps=steps; this.activeStepIdx=steps.length-1;
+    this.renderStepsList();
+  },
+  renderStepsList(){
+    const list=document.getElementById('stepsList');
+    list.innerHTML=this.steps.map((s,i)=>`<li class="${i===this.activeStepIdx?'active':''}"><span class="idx">${i+1}.</span>${s}</li>`).join('');
+    const activeLi=list.querySelector('li.active');
+    if(activeLi) activeLi.scrollIntoView({block:'nearest'});
+  },
+  stepNav(dir){
+    if(!this.steps || !this.steps.length) return;
+    this.activeStepIdx=Math.max(0, Math.min(this.steps.length-1, this.activeStepIdx+dir));
+    this.renderStepsList();
+  },
+  togglePlay(){
+    const btn=document.getElementById('stepPlay');
+    if(this.playTimer){ clearInterval(this.playTimer); this.playTimer=null; btn.textContent='▶ Play'; return; }
+    btn.textContent='⏸ Pause';
+    this.activeStepIdx=-1;
+    this.playTimer=setInterval(()=>{
+      this.activeStepIdx++;
+      if(this.activeStepIdx>=this.steps.length){ clearInterval(this.playTimer); this.playTimer=null; btn.textContent='▶ Play'; this.activeStepIdx=this.steps.length-1; }
+      this.renderStepsList();
+    }, 750);
+  },
+
+  render(){
+    const t=this.getTree();
+    let root=null, opts={};
+    const empty=document.getElementById('emptyState');
+    const svg=document.getElementById('treeSvg');
+    if(this.currentType==='avl'){ root=adaptAVL(t.root); }
+    else if(this.currentType==='rb'){ root = t.root!==t.NIL? adaptRB(t,t.root): null; }
+    else if(this.currentType==='btree'){ root = t.root.keys.length? adaptBTree(t.root): (t.root.children.length? adaptBTree(t.root): null); }
+    else if(this.currentType==='bplus'){
+      root = (t.root.keys.length || (t.root.leaf===false)) ? adaptBPlus(t.root) : (t.root.leaf && t.root.keys.length===0 ? null : adaptBPlus(t.root));
+      if(t.root.leaf && t.root.keys.length===0) root=null;
+      if(root){
+        const chain=[]; let leaf=t.root; while(!leaf.leaf) leaf=leaf.children[0];
+        while(leaf){ chain.push(leaf.id); leaf=leaf.next; }
+        opts.leafChainOrder=chain;
+      }
+    }
+    else if(this.currentType==='trie'){ root = t.wordCount>0 ? adaptTrie(t.root,'root') : null; }
+
+    if(!root){ empty.style.display='flex'; svg.style.display='none'; }
+    else{ empty.style.display='none'; renderTreeSVG(svg, root, opts); this.applyZoom(); }
+
+    this.buildProps();
+    this.buildSteps();
+    this.renderTraversals();
+  },
+
+  applyZoom(){
+    const svg=document.getElementById('treeSvg');
+    svg.style.transform=`scale(${this.zoom})`;
+    svg.style.transformOrigin='top left';
+  },
+
+  setMessage(text, kind){
+    const el=document.getElementById('msgLine');
+    el.textContent=text; el.className='msg-line '+(kind||'info');
+  },
+  clearMessage(){ this.setMessage('Enter comma or space separated values, then Insert.','info'); },
+  hideValidate(){ document.getElementById('validateBox').style.display='none'; },
+
+  doInsert(){
+    const raw=document.getElementById('valueInput').value;
+    if(!raw.trim()){ this.setMessage('Please enter a value.','error'); return; }
+    const t=this.getTree();
+    if(this.currentType==='trie'){
+      const words=parseValues(raw);
+      let anyErr=null, insertedAny=false;
+      words.forEach(w=>{ if(!/^[a-zA-Z]+$/.test(w)){ anyErr='Please enter a valid word.'; return; } if(t.insert(w)) insertedAny=true; });
+      if(anyErr && !insertedAny){ this.setMessage(anyErr,'error'); return; }
+      this.setMessage(`Inserted ${words.length} word(s).`,'ok');
+    } else {
+      const nums=parseNumbers(raw);
+      if(!nums.length){ this.setMessage('Please enter a valid number.','error'); return; }
+      let dup=0;
+      nums.forEach(n=>{
+        let ok;
+        if(this.currentType==='avl'||this.currentType==='rb') ok=t.insert(n);
+        else ok=t.insert(n);
+        if(!ok) dup++;
+      });
+      if(dup===nums.length) this.setMessage('Duplicate values are not allowed in this tree.','error');
+      else this.setMessage(`Inserted ${nums.length-dup} value(s).${dup?` (${dup} duplicate skipped)`:''}`,'ok');
+    }
+    document.getElementById('valueInput').value='';
+    this.hideValidate();
+    this.render();
+  },
+
+  doDelete(){
+    const raw=document.getElementById('valueInput').value;
+    if(!raw.trim()){ this.setMessage('Please enter a value.','error'); return; }
+    const t=this.getTree();
+    if(this.currentType==='trie'){
+      const words=parseValues(raw); let ok=0;
+      words.forEach(w=>{ if(t.delete(w)) ok++; });
+      this.setMessage(ok? `Deleted ${ok} word(s).` : `Word(s) not found.`, ok?'ok':'error');
+    } else {
+      const nums=parseNumbers(raw);
+      if(!nums.length){ this.setMessage('Please enter a valid number.','error'); return; }
+      let ok=0; nums.forEach(n=>{ if(t.delete(n)) ok++; });
+      this.setMessage(ok? `Deleted ${ok} value(s).` : `Value(s) not found.`, ok?'ok':'error');
+    }
+    document.getElementById('valueInput').value='';
+    this.hideValidate();
+    this.render();
+  },
+
+  doSearch(){
+    const raw=document.getElementById('valueInput').value.trim();
+    if(!raw){ this.setMessage('Please enter a value.','error'); return; }
+    const t=this.getTree();
+    let found=false;
+    if(this.currentType==='trie'){ found=t.search(raw); this.setMessage(found?`"${raw}" found in trie.`:`"${raw}" not found.`, found?'ok':'error'); }
+    else if(this.currentType==='btree'){ found=t.searchPath(Number(raw)); this.setMessage(found?`Key ${raw} found.`:`Key ${raw} not found.`, found?'ok':'error'); }
+    else if(this.currentType==='bplus'){ found=t.search(Number(raw)); t.steps=[`Searched leaf level for key ${raw}.`, found?'Key found.':'Key not found.']; this.setMessage(found?`Key ${raw} found.`:`Key ${raw} not found.`, found?'ok':'error'); }
+    else { found=t.search(Number(raw)); this.setMessage(found?`Value ${raw} found.`:`Value ${raw} not found.`, found?'ok':'error'); }
+    this.buildSteps();
+  },
+
+  doPrefix(){
+    const raw=document.getElementById('valueInput').value.trim();
+    if(!raw){ this.setMessage('Please enter a value.','error'); return; }
+    const t=this.getTree();
+    const words=t.startsWith(raw);
+    this.setMessage(words.length? `${words.length} word(s) match prefix "${raw}": ${words.join(', ')}` : `No words match prefix "${raw}".`, words.length?'ok':'error');
+    this.buildSteps();
+  },
+
+  doRange(){
+    const from=Number(document.getElementById('rangeFrom').value);
+    const to=Number(document.getElementById('rangeTo').value);
+    if(isNaN(from)||isNaN(to)){ this.setMessage('Please enter valid range numbers.','error'); return; }
+    const t=this.getTree();
+    const res=t.rangeSearch(Math.min(from,to), Math.max(from,to));
+    document.getElementById('rangeResult').innerHTML=`<span class="pill-result">${res.join(', ')||'none'}</span>`;
+    this.buildSteps();
+  },
+
+  doClear(){
+    this.resetCurrentTree();
+    this.setMessage('Tree cleared.','info');
+    this.hideValidate();
+    this.render();
+  },
+  doReset(){ this.doClear(); },
+
+  resetCurrentTree(){
+    if(this.currentType==='avl') this.trees.avl=new AVLTree();
+    else if(this.currentType==='rb') this.trees.rb=new RedBlackTree();
+    else if(this.currentType==='btree') this.trees.btree=new BTree(this.degree);
+    else if(this.currentType==='bplus') this.trees.bplus=new BPlusTree(this.degree);
+    else if(this.currentType==='trie') this.trees.trie=new Trie();
+  },
+
+  applyDegree(){
+    const v=parseInt(document.getElementById('degreeInput').value,10);
+    if(!v || v<2){ this.setMessage('Minimum degree must be at least 2.','error'); return; }
+    this.degree=v;
+    if(this.currentType==='btree') this.trees.btree=new BTree(v);
+    if(this.currentType==='bplus') this.trees.bplus=new BPlusTree(v);
+    this.setMessage(`Minimum degree set to ${v}. Tree reset.`,'ok');
+    this.render();
+  },
+
+  doRandom(){
+    const count=Math.max(1, Math.min(200, parseInt(document.getElementById('randomCount').value,10)||10));
+    const t=this.getTree();
+    if(this.currentType==='trie'){
+      const bank=['apple','application','apply','app','banana','ball','bat','cat','car','card','care','dog','door','date','ever','every','fig','fox','goat','grape','hat','hint','ice','item','jam','jump','kite','king','lion','lime','moon','mango','net','nest','owl','open','pear','plum','quiz','quick','rose','rain','sun','star','tree','time','umbrella','unit','vine','wolf'];
+      for(let i=0;i<count;i++) t.insert(bank[Math.floor(Math.random()*bank.length)]+(Math.random()<0.3?String.fromCharCode(97+Math.floor(Math.random()*26)):''));
+    } else {
+      const used=new Set();
+      let tries=0;
+      while(used.size<count && tries<count*10){ tries++; used.add(Math.floor(Math.random()*500)); }
+      used.forEach(n=>t.insert(n));
+    }
+    this.setMessage(`Generated ${count} random ${this.currentType==='trie'?'word(s)':'value(s)'}.`,'ok');
+    this.hideValidate();
+    this.render();
+  },
+
+  doValidate(){
+    const t=this.getTree();
+    const res=t.validate();
+    const box=document.getElementById('validateBox');
+    box.style.display='block';
+    box.className='validate-box '+(res.ok?'valid':'invalid');
+    box.textContent = res.ok? '✓ Tree is valid' : '✗ Tree violation detected: '+res.errs.slice(0,4).join('; ');
+  },
+
+  loadPreset(key){
+    this.selectType(key, true);
+    this.resetCurrentTree();
+    const t=this.getTree();
+    const presets={
+      avl:[30,20,10],
+      rb:[10,20,30,15,25,5],
+      btree:[10,20,5,6,12,30,7,17],
+      bplus:[10,20,5,6,12,30,7,17],
+      trie:['apple','application','apply','app','banana','ball','bat'],
+    };
+    (presets[key]||[]).forEach(v=>t.insert(v));
+    this.setMessage('Preset loaded.','ok');
+    this.render();
+  },
+
+  exportSVG(){
+    const svg=document.getElementById('treeSvg');
+    if(svg.style.display==='none'){ this.setMessage('Nothing to export — tree is empty.','error'); return; }
+    const clone=svg.cloneNode(true);
+    clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    const style=document.createElementNS('http://www.w3.org/2000/svg','style');
+    const cs=getComputedStyle(document.body);
+    style.textContent = `
+      .svg-node-circle{fill:${cs.getPropertyValue('--panel-solid')};} 
+      .svg-label{font-family:monospace; font-weight:700; fill:${cs.getPropertyValue('--text')}; text-anchor:middle; dominant-baseline:middle;}
+      .svg-edge{stroke:${cs.getPropertyValue('--text-faint')}; stroke-width:2px; fill:none;}
+      .svg-meta{font-family:monospace; font-size:9.5px; fill:${cs.getPropertyValue('--text-faint')}; text-anchor:middle;}
+      .svg-leafchain{stroke:${cs.getPropertyValue('--accent-warm')}; stroke-width:1.6px; stroke-dasharray:5 4; fill:none;}
+      .svg-node-rect{fill:${cs.getPropertyValue('--bg2')};}
+    `;
+    clone.insertBefore(style, clone.firstChild);
+    const bg=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    bg.setAttribute('x',0); bg.setAttribute('y',0);
+    bg.setAttribute('width', clone.getAttribute('width')); bg.setAttribute('height', clone.getAttribute('height'));
+    bg.setAttribute('fill', cs.getPropertyValue('--bg'));
+    clone.insertBefore(bg, clone.firstChild.nextSibling);
+    const xml=new XMLSerializer().serializeToString(clone);
+    const blob=new Blob([xml], {type:'image/svg+xml'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`treelab-${this.currentType}.svg`; a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  exportPNG(){
+    const svg=document.getElementById('treeSvg');
+    if(svg.style.display==='none'){ this.setMessage('Nothing to export — tree is empty.','error'); return; }
+    const w=parseInt(svg.getAttribute('width'),10), h=parseInt(svg.getAttribute('height'),10);
+    const clone=svg.cloneNode(true);
+    const cs=getComputedStyle(document.body);
+    const style=document.createElementNS('http://www.w3.org/2000/svg','style');
+    style.textContent = `
+      .svg-node-circle{fill:${cs.getPropertyValue('--panel-solid')};}
+      .svg-label{font-family:monospace; font-weight:700; fill:${cs.getPropertyValue('--text')}; text-anchor:middle; dominant-baseline:middle;}
+      .svg-edge{stroke:${cs.getPropertyValue('--text-faint')}; stroke-width:2px; fill:none;}
+      .svg-meta{font-family:monospace; font-size:9.5px; fill:${cs.getPropertyValue('--text-faint')}; text-anchor:middle;}
+      .svg-node-rect{fill:${cs.getPropertyValue('--bg2')};}
+    `;
+    clone.insertBefore(style, clone.firstChild);
+    const xml=new XMLSerializer().serializeToString(clone);
+    const svg64=btoa(unescape(encodeURIComponent(xml)));
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas'); canvas.width=w*2; canvas.height=h*2;
+      const ctx=canvas.getContext('2d');
+      ctx.fillStyle=cs.getPropertyValue('--bg'); ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.scale(2,2);
+      ctx.drawImage(img,0,0,w,h);
+      canvas.toBlob(blob=>{
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download=`treelab-${this.currentType}.png`; a.click();
+        URL.revokeObjectURL(url);
+      });
+    };
+    img.src='data:image/svg+xml;base64,'+svg64;
+  },
+
+  loadTheme(){
+    const saved=localStorage.getItem('treelab-theme') || 'dark';
+    document.body.setAttribute('data-theme', saved);
+    document.getElementById('themeToggle').textContent = saved==='dark'? '🌙 Theme':'☀ Theme';
+  },
+  toggleTheme(){
+    const cur=document.body.getAttribute('data-theme');
+    const next=cur==='dark'?'light':'dark';
+    document.body.setAttribute('data-theme', next);
+    localStorage.setItem('treelab-theme', next);
+    document.getElementById('themeToggle').textContent = next==='dark'? '🌙 Theme':'☀ Theme';
+  },
+
+  bindEvents(){
+    document.getElementById('insertBtn').addEventListener('click', ()=>this.doInsert());
+    document.getElementById('deleteBtn').addEventListener('click', ()=>this.doDelete());
+    document.getElementById('searchBtn').addEventListener('click', ()=>this.doSearch());
+    document.getElementById('prefixBtn').addEventListener('click', ()=>this.doPrefix());
+    document.getElementById('clearBtn').addEventListener('click', ()=>this.doClear());
+    document.getElementById('resetBtn').addEventListener('click', ()=>this.doReset());
+    document.getElementById('randomBtn').addEventListener('click', ()=>this.doRandom());
+    document.getElementById('validateBtn').addEventListener('click', ()=>this.doValidate());
+    document.getElementById('applyDegreeBtn').addEventListener('click', ()=>this.applyDegree());
+    document.getElementById('rangeBtn').addEventListener('click', ()=>this.doRange());
+    document.getElementById('valueInput').addEventListener('keydown', e=>{ if(e.key==='Enter') this.doInsert(); });
+    document.getElementById('stepPrev').addEventListener('click', ()=>this.stepNav(-1));
+    document.getElementById('stepNext').addEventListener('click', ()=>this.stepNav(1));
+    document.getElementById('stepPlay').addEventListener('click', ()=>this.togglePlay());
+    document.getElementById('themeToggle').addEventListener('click', ()=>this.toggleTheme());
+    document.getElementById('exportSvgBtn').addEventListener('click', ()=>this.exportSVG());
+    document.getElementById('exportPngBtn').addEventListener('click', ()=>this.exportPNG());
+    document.getElementById('zoomInBtn').addEventListener('click', ()=>{ this.zoom=Math.min(2, this.zoom+0.1); this.applyZoom(); document.getElementById('zoomResetBtn').textContent=Math.round(this.zoom*100)+'%'; });
+    document.getElementById('zoomOutBtn').addEventListener('click', ()=>{ this.zoom=Math.max(0.4, this.zoom-0.1); this.applyZoom(); document.getElementById('zoomResetBtn').textContent=Math.round(this.zoom*100)+'%'; });
+    document.getElementById('zoomResetBtn').addEventListener('click', ()=>{ this.zoom=1; this.applyZoom(); document.getElementById('zoomResetBtn').textContent='100%'; });
+    document.getElementById('helpBtn').addEventListener('click', ()=>{
+      alert('TreeLab quick guide:\n\n1. Pick a tree type from the sidebar.\n2. Enter values (comma or space separated) and Insert / Delete / Search.\n3. Watch the Algorithm Steps panel for a play-by-play of rotations, splits, or recoloring.\n4. Use Validate Tree to check the structure is correctly balanced.\n5. Export the diagram as SVG or PNG any time.');
+    });
+    document.getElementById('welcomeStart').addEventListener('click', ()=>{
+      document.getElementById('welcomeOverlay').style.display='none';
+    });
+  },
+};
+
+document.addEventListener('DOMContentLoaded', ()=>App.init());
+</script>
+</body>
+</html>
