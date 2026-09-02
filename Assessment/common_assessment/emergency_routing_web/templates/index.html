@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Emergency Routing Control Center</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">SMART CITY OPERATIONS</p>
+        <h1>Emergency Routing<br><span>Control Center</span></h1>
+        <p class="subtitle">Dijkstra-powered route planning with live traffic updates and instant route caching.</p>
+      </div>
+      <div class="system-pill"><span class="pulse"></span> SYSTEM ONLINE</div>
+    </header>
+
+    <section class="stats-grid" aria-label="Network statistics">
+      <div class="stat-card"><span class="stat-icon blue">◈</span><div><small>ROAD NETWORK</small><strong id="nodes">—</strong><em id="roads">— roads</em></div></div>
+      <div class="stat-card"><span class="stat-icon violet">⌁</span><div><small>ALGORITHM</small><strong>DIJKSTRA</strong><em>Min-heap priority queue</em></div></div>
+      <div class="stat-card"><span class="stat-icon orange">◷</span><div><small>ROUTE CACHE</small><strong id="cache">0</strong><em>Cached results</em></div></div>
+      <div class="stat-card"><span class="stat-icon green">✓</span><div><small>STATUS</small><strong>READY</strong><em>Awaiting dispatch</em></div></div>
+    </section>
+
+    <section class="workspace">
+      <div class="panel route-panel">
+        <div class="panel-heading"><div><p class="eyebrow">01 / ROUTE PLANNER</p><h2>Find fastest route</h2></div><span class="tag">SHORTEST PATH</span></div>
+        <form id="route-form" class="form-grid">
+          <label>START NODE<input id="source" type="number" min="0" value="10" required></label>
+          <label>DESTINATION NODE<input id="destination" type="number" min="0" value="4321" required></label>
+          <button type="submit" class="primary full">Calculate route <span>→</span></button>
+        </form>
+        <div id="route-result" class="result empty">Run a query to see the fastest emergency route.</div>
+      </div>
+
+      <div class="panel traffic-panel">
+        <div class="panel-heading"><div><p class="eyebrow">02 / LIVE CONDITIONS</p><h2>Update traffic</h2></div><span class="tag warning">REAL TIME</span></div>
+        <form id="traffic-form" class="form-grid">
+          <label>FROM NODE<input id="traffic-source" type="number" min="0" value="10" required></label>
+          <label>TO NODE<input id="traffic-destination" type="number" min="0" value="11" required></label>
+          <label class="wide">NEW TRAVEL TIME <span class="unit">seconds</span><input id="weight" type="number" min="1" value="4000" required></label>
+          <button type="submit" class="secondary full">Apply congestion update <span>↗</span></button>
+        </form>
+        <div id="traffic-result" class="result empty">Updating a road clears cached routes so new conditions are used.</div>
+      </div>
+    </section>
+
+    <section class="panel network-panel">
+      <div class="panel-heading"><div><p class="eyebrow">03 / NETWORK CONFIGURATION</p><h2>Generate road network</h2></div><span id="seed-label" class="tag">RANDOMIZED</span></div>
+      <form id="generate-form" class="generate-grid">
+        <label>NODES<input id="gen-nodes" type="number" min="2" max="6000" value="5000"></label>
+        <label>ROADS<input id="gen-roads" type="number" min="1" value="10000"></label>
+        <label>MAX TRAVEL TIME<input id="gen-weight" type="number" min="1" value="500"></label>
+        <label>SEED <span class="optional">optional</span><input id="gen-seed" type="number" placeholder="random"></label>
+        <button type="submit" class="outline">Regenerate network</button>
+      </form>
+    </section>
+
+    <section class="panel path-panel">
+      <div class="panel-heading"><div><p class="eyebrow">ROUTE VISUALIZATION</p><h2>Dispatch path</h2></div><span id="path-meta" class="muted">No route calculated</span></div>
+      <div id="path-view" class="path-view"><span class="path-placeholder">Your selected route will appear here</span></div>
+    </section>
+
+    <footer><span>EMERGENCY ROUTING SYSTEM</span><span>Graph storage · Hash map &nbsp;|&nbsp; Search · Dijkstra &nbsp;|&nbsp; Cache · O(1) average lookup</span></footer>
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
